@@ -122,6 +122,7 @@ CONFIGURE_VARS += \
 	libblkid_cv_is_recent=yes \
 	ac_cv_lib_resolv___res_querydomain=yes \
 	ac_cv_lib_bsd_daemon=no \
+	HAVE_FIND_KEY_BY_TYPE_AND_DESC=1 \
 	CONFIG_SQLITE3_TRUE="\#" \
 	CONFIG_NFSDCLD_TRUE="\#"
 
