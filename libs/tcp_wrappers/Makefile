@@ -36,6 +36,10 @@ ifeq ($(CONFIG_USE_MUSL),)
 TARGET_EXTRA_LIBS:=LIBS=-lnsl
 endif
 
+ifeq ($(CONFIG_USE_MUSL),)
+TARGET_EXTRA_LIBS:=LIBS=-lnsl
+endif
+
 define Build/Compile	
 	$(MAKE) -C $(PKG_BUILD_DIR) \
 		$(TARGET_CONFIGURE_OPTS) \
