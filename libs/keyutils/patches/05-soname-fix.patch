@@ -1,11 +1,12 @@
---- a/Makefile	2018-09-13 00:24:52.391830260 +0200
-+++ b/Makefile	2018-09-13 00:25:11.594939961 +0200
-@@ -165,7 +165,7 @@
+--- a/Makefile	2019-01-21 00:24:52.391830260 +0200
++++ b/Makefile	2019-01-21 00:25:11.594939961 +0200
+@@ -184,7 +184,8 @@
  	$(INSTALL) -D $(LIBNAME) $(DESTDIR)$(LIBDIR)/$(LIBNAME)
  	$(LNS) $(LIBNAME) $(DESTDIR)$(LIBDIR)/$(SONAME)
  	mkdir -p $(DESTDIR)$(USRLIBDIR)
 -	$(LNS) $(LIBDIR)/$(SONAME) $(DESTDIR)$(USRLIBDIR)/$(DEVELLIB)
 +	$(LNS) $(SONAME) $(DESTDIR)$(USRLIBDIR)/$(DEVELLIB)
- endif
- 	$(INSTALL) -D keyctl $(DESTDIR)$(BINDIR)/keyctl
- 	$(INSTALL) -D request-key $(DESTDIR)$(SBINDIR)/request-key
++
+ 	sed \
+ 	-e 's,@VERSION\@,$(VERSION),g' \
+ 	-e 's,@prefix\@,$(PREFIX),g' \
