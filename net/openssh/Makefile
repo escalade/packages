@@ -8,13 +8,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=openssh
-PKG_VERSION:=8.2p1
-PKG_RELEASE:=2
+PKG_VERSION:=8.4p1
+PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/ \
 		https://ftp.spline.de/pub/OpenBSD/OpenSSH/portable/
-PKG_HASH:=43925151e6cf6cee1450190c0e9af4dc36b41c12737619edff8bcebdff64e671
+PKG_HASH:=5a01d22e407eb1c05ba8a8f7c654d388a13e9f226e4ed33bd38748dafa1d2b24
 
 PKG_LICENSE:=BSD ISC
 PKG_LICENSE_FILES:=LICENCE
@@ -94,8 +94,10 @@ endef
 
 define Package/openssh-server/conffiles
 /etc/ssh/sshd_config
-/etc/ssh/ssh_host_*_key
-/etc/ssh/ssh_host_*_key.pub
+/etc/ssh/ssh_host_ed25519_key
+/etc/ssh/ssh_host_ed25519_key.pub
+/etc/ssh/ssh_host_rsa_key
+/etc/ssh/ssh_host_rsa_key.pub
 endef
 
 define Package/openssh-server-pam
@@ -149,21 +151,18 @@ define Package/openssh-sftp-avahi-service/conffiles
 /etc/avahi/services/sftp-ssh.service
 endef
 
-CONFIGURE_ARGS+= \
-	$(DISABLE_NLS) \
+CONFIGURE_ARGS += \
 	--sysconfdir=/etc/ssh \
 	--with-privsep-user=sshd \
 	--with-privsep-path=/var/empty \
-	--enable-shared \
-	--disable-static \
-	--disable-debug \
 	--disable-strip \
 	--disable-etc-default-login \
 	--disable-utmpx \
 	--disable-wtmpx \
 	--without-bsd-auth \
 	--without-kerberos5 \
-	--without-x
+	--with-stackprotect \
+	--with$(if $(CONFIG_OPENSSL_ENGINE),,out)-ssl-engine
 
 ifeq ($(BUILD_VARIANT),with-pam)
 CONFIGURE_ARGS += \
@@ -171,16 +170,6 @@ CONFIGURE_ARGS += \
 else
 CONFIGURE_ARGS += \
 	--without-pam
-endif
-
-ifeq ($(CONFIG_OPENSSL_ENGINE),y)
-CONFIGURE_ARGS+= \
-	--with-ssl-engine
-endif
-
-ifneq ($(CONFIG_SSP_SUPPORT),y)
-CONFIGURE_ARGS += \
-	--without-stackprotect
 endif
 
 CONFIGURE_VARS += LD="$(TARGET_CC)"
@@ -224,7 +213,7 @@ define Package/openssh-server/install
 	$(INSTALL_DIR) $(1)/etc/ssh
 	chmod 0700 $(1)/etc/ssh
 	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/etc/ssh/sshd_config $(1)/etc/ssh/
-	sed -r -i 's,^#(HostKey /etc/ssh/ssh_host_(rsa|ecdsa|ed25519)_key)$$$$,\1,' $(1)/etc/ssh/sshd_config
+	sed -r -i 's,^#(HostKey /etc/ssh/ssh_host_(rsa|ed25519)_key)$$$$,\1,' $(1)/etc/ssh/sshd_config
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/sshd.init $(1)/etc/init.d/sshd
 	$(INSTALL_DIR) $(1)/usr/sbin

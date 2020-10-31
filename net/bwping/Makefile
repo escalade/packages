@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=bwping
-PKG_VERSION:=1.16
+PKG_VERSION:=2.1
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=@SF/bwping
-PKG_HASH:=c0a0c61f779d7b497bfc264103614d013002e74502a868d678e8b569a3017687
+PKG_HASH:=09bf0f369f19e2ea85aab4812ad89b7a20edb9cc242ec98931f5fd0646bb1d74
 
 PKG_MAINTAINER:=Oleg Derevenetz <oleg.derevenetz@gmail.com>
 PKG_LICENSE:=BSD-2-Clause
@@ -42,6 +42,7 @@ endef
 define Package/bwping/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/$(PKG_NAME) $(1)/usr/sbin/
+	$(CP) $(PKG_INSTALL_DIR)/usr/sbin/$(PKG_NAME)6 $(1)/usr/sbin/
 endef
 
 $(eval $(call BuildPackage,bwping))

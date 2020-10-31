@@ -4,14 +4,14 @@
 # This is free software, licensed under the GNU General Public License v3.
 
 # set (s)hellcheck exceptions
-# shellcheck disable=1091,2016,2039,2059,2086,2143,2181,2188
+# shellcheck disable=1091,2010,2016,2034,2039,2059,2086,2091,2129,2143,2154,2181,2183,2188
 
 # set initial defaults
 #
 export LC_ALL=C
 export PATH="/usr/sbin:/usr/bin:/sbin:/bin"
 set -o pipefail
-adb_ver="4.0.4"
+adb_ver="4.0.7"
 adb_enabled=0
 adb_debug=0
 adb_forcedns=0
@@ -20,6 +20,7 @@ adb_dnsfilereset=0
 adb_dnsflush=0
 adb_dnstimeout=20
 adb_safesearch=0
+adb_safesearchlist=""
 adb_safesearchmod=0
 adb_report=0
 adb_trigger=""
@@ -30,6 +31,7 @@ adb_mailcnt=0
 adb_jail=0
 adb_dns=""
 adb_dnsprefix="adb_list"
+adb_locallist="blacklist whitelist"
 adb_tmpbase="/tmp"
 adb_backupdir="/tmp"
 adb_reportdir="/tmp"
@@ -123,19 +125,9 @@ f_conf()
 {
 	local cnt=0 cnt_max=10
 
-	if [ ! -r "/etc/config/adblock" ] || [ -n "$(uci -q show adblock.@source[0])" ]
+	if [ ! -r "/etc/config/adblock" ] || [ -z "$(uci -q show adblock.global.adb_safesearch)" ]
 	then
-		if [ -r "/etc/config/adblock-opkg" ] && [ -z "$(uci -q show adblock-opkg.@source[0])" ]
-		then
-			if [ -r "/etc/config/adblock" ]
-			then
-				cp -pf "/etc/config/adblock" "/etc/config/adblock-backup"
-			fi
-			cp -pf "/etc/config/adblock-opkg" "/etc/config/adblock"
-			f_log "info" "missing or old adblock config replaced with new valid default config"
-		else
-			f_log "err" "unrecoverable adblock config error, please re-install the package via opkg with the '--force-reinstall --force-maintainer' options"
-		fi
+		f_log "err" "no valid adblock config found, please re-install the package via opkg with the '--force-reinstall --force-maintainer' options"
 	fi
 
 	config_cb()
@@ -150,7 +142,13 @@ f_conf()
 		{
 			local option="${1}"
 			local value="${2}"
-			eval "${option}=\"$(printf "%s" "${adb_sources}") ${value}\""
+			if [ "${option}" = "adb_sources" ]
+			then
+				eval "${option}=\"$(printf "%s" "${adb_sources}") ${value}\""
+			elif [ "${option}" = "adb_safesearchlist" ]
+			then
+				eval "${option}=\"$(printf "%s" "${adb_safesearchlist}") ${value}\""
+			fi
 		}
 	}
 	config_load adblock
@@ -242,10 +240,10 @@ f_dns()
 				adb_dnsinstance="${adb_dnsinstance:-"0"}"
 				adb_dnsuser="${adb_dnsuser:-"root"}"
 				adb_dnsdir="${adb_dnsdir:-"/etc/kresd"}"
-				adb_dnsheader="${adb_dnsheader:-"\$TTL 2h\n@ IN SOA localhost. root.localhost. (1 6h 1h 1w 2h)\n  IN NS  localhost.\n"}"
+				adb_dnsheader="${adb_dnsheader:-"\$TTL 2h\n@ IN SOA localhost. root.localhost. (1 6h 1h 1w 2h)\n"}"
 				adb_dnsdeny="${adb_dnsdeny:-"${adb_awk} '{print \"\"\$0\" CNAME .\\n*.\"\$0\" CNAME .\"}'"}"
 				adb_dnsallow="${adb_dnsallow:-"${adb_awk} '{print \"\"\$0\" CNAME rpz-passthru.\\n*.\"\$0\" CNAME rpz-passthru.\"}'"}"
-				adb_dnssafesearch="${adb_dnssafesearch:-"0"}"
+				adb_dnssafesearch="${adb_dnssafesearch:-"${adb_awk} -v item=\"\$item\" '{type=\"AAAA\";if(match(item,/^([0-9]{1,3}\.){3}[0-9]{1,3}$/)){type=\"A\"}}{print \"\"\$0\" \"type\" \"item\"\"}'"}"
 				adb_dnsstop="${adb_dnsstop:-"* CNAME ."}"
 			;;
 			"raw")
@@ -371,7 +369,7 @@ f_fetch()
 	fi
 	case "${adb_fetchutil}" in
 		"aria2c")
-			adb_fetchparm="${adb_fetchparm:-"--timeout=20 --allow-overwrite=true --auto-file-renaming=false --check-certificate=true --dir= -o"}"
+			adb_fetchparm="${adb_fetchparm:-"--timeout=20 --allow-overwrite=true --auto-file-renaming=false --check-certificate=true --log-level=warn --dir=/ -o"}"
 		;;
 		"curl")
 			adb_fetchparm="${adb_fetchparm:-"--connect-timeout 20 --silent --show-error --location -o"}"
@@ -670,7 +668,7 @@ f_list()
 			src_name="${mode}"
 			if [ "${src_name}" = "blacklist" ] && [ -s "${adb_blacklist}" ]
 			then
-				rset="/^([[:alnum:]_-]+\\.)+[[:alpha:]]+([[:space:]]|$)/{print tolower(\$1)}"
+				rset="/^([[:alnum:]_-]{1,63}\\.)+[[:alpha:]]+([[:space:]]|$)/{print tolower(\$1)}"
 				"${adb_awk}" "${rset}" "${adb_blacklist}" | \
 				"${adb_awk}" 'BEGIN{FS="."}{for(f=NF;f>1;f--)printf "%s.",$f;print $1}' > "${adb_tmpdir}/tmp.raw.${src_name}"
 				sort ${adb_srtopts} -u "${adb_tmpdir}/tmp.raw.${src_name}" 2>/dev/null > "${adb_tmpfile}.${src_name}"
@@ -678,12 +676,12 @@ f_list()
 				rm -f "${adb_tmpdir}/tmp.raw.${src_name}"
 			elif [ "${src_name}" = "whitelist" ] && [ -s "${adb_whitelist}" ]
 			then
-				rset="/^([[:alnum:]_-]+\\.)+[[:alpha:]]+([[:space:]]|$)/{print tolower(\$1)}"
+				rset="/^([[:alnum:]_-]{1,63}\\.)+[[:alpha:]]+([[:space:]]|$)/{print tolower(\$1)}"
 				"${adb_awk}" "${rset}" "${adb_whitelist}" > "${adb_tmpdir}/tmp.raw.${src_name}"
 				out_rc="${?}"
 				if [ "${out_rc}" -eq 0 ]
 				then
-					rset="/^([[:alnum:]_-]+\\.)+[[:alpha:]]+([[:space:]]|$)/{gsub(\"\\\\.\",\"\\\\.\",\$1);print tolower(\"^(|.*\\\\.)\"\$1\"$\")}"
+					rset="/^([[:alnum:]_-]{1,63}\\.)+[[:alpha:]]+([[:space:]]|$)/{gsub(\"\\\\.\",\"\\\\.\",\$1);print tolower(\"^(|.*\\\\.)\"\$1\"$\")}"
 					"${adb_awk}" "${rset}" "${adb_tmpdir}/tmp.raw.${src_name}" > "${adb_tmpdir}/tmp.rem.${src_name}"
 					out_rc="${?}"
 					if [ "${out_rc}" -eq 0 ] && [ "${adb_dnsallow}" != "1" ]
@@ -707,9 +705,8 @@ f_list()
 		"safesearch")
 			case "${src_name}" in
 				"google")
-					rset="/^(\\.[[:alnum:]_-]+\\.)+[[:alpha:]]+([[:space:]]|$)/{printf \"%s\n%s\n\",tolower(\"www\"\$1),tolower(substr(\$1,2,length(\$1)))}"
+					rset="/^(\\.[[:alnum:]_-]{1,63}\\.)+[[:alpha:]]+([[:space:]]|$)/{printf \"%s\n%s\n\",tolower(\"www\"\$1),tolower(substr(\$1,2,length(\$1)))}"
 					safe_url="https://www.google.com/supported_domains"
-					safe_ips="216.239.38.120 2001:4860:4802:32::78"
 					safe_cname="forcesafesearch.google.com"
 					safe_domains="${adb_tmpdir}/tmp.load.safesearch.${src_name}"
 					if [ "${adb_backup}" -eq 1 ] && [ -s "${adb_backupdir}/safesearch.${src_name}.gz" ]
@@ -726,56 +723,92 @@ f_list()
 					fi
 					if [ "${out_rc}" -eq 0 ]
 					then
-						"${adb_awk}" "${rset}" "${safe_domains}" > "${adb_tmpdir}/tmp.raw.safesearch.${src_name}"
+						if [ -x "${adb_lookupcmd}" ]
+						then
+							safe_ips="$("${adb_lookupcmd}" "${safe_cname}" 2>/dev/null | "${adb_awk}" '/^Address[ 0-9]*: /{ORS=" ";print $NF}')"
+							if [ -n "${safe_ips}" ]
+							then
+								"${adb_awk}" "${rset}" "${safe_domains}" > "${adb_tmpdir}/tmp.raw.safesearch.${src_name}"
+							fi
+						fi
 						out_rc="${?}"
 					fi
 				;;
 				"bing")
-					safe_ips="204.79.197.220 ::FFFF:CC4F:C5DC"
 					safe_cname="strict.bing.com"
 					safe_domains="www.bing.com"
-					printf "%s\n" ${safe_domains} > "${adb_tmpdir}/tmp.raw.safesearch.${src_name}"
+					if [ -x "${adb_lookupcmd}" ]
+					then
+						safe_ips="$("${adb_lookupcmd}" "${safe_cname}" 2>/dev/null | "${adb_awk}" '/^Address[ 0-9]*: /{ORS=" ";print $NF}')"
+						if [ -n "${safe_ips}" ]
+						then
+							printf "%s\n" ${safe_domains} > "${adb_tmpdir}/tmp.raw.safesearch.${src_name}"
+						fi
+					fi
 					out_rc="${?}"
 				;;
 				"duckduckgo")
-					safe_ips="50.16.250.179 54.208.102.2 52.204.96.252"
 					safe_cname="safe.duckduckgo.com"
 					safe_domains="duckduckgo.com"
-					printf "%s\n" ${safe_domains} > "${adb_tmpdir}/tmp.raw.safesearch.${src_name}"
+					if [ -x "${adb_lookupcmd}" ]
+					then
+						safe_ips="$("${adb_lookupcmd}" "${safe_cname}" 2>/dev/null | "${adb_awk}" '/^Address[ 0-9]*: /{ORS=" ";print $NF}')"
+						if [ -n "${safe_ips}" ]
+						then
+							printf "%s\n" ${safe_domains} > "${adb_tmpdir}/tmp.raw.safesearch.${src_name}"
+						fi
+					fi
 					out_rc="${?}"
 				;;
 				"pixabay")
-					safe_ips="104.18.82.97 2606:4700::6812:8d57 2606:4700::6812:5261"
 					safe_cname="safesearch.pixabay.com"
 					safe_domains="pixabay.com"
-					printf "%s\n" ${safe_domains} > "${adb_tmpdir}/tmp.raw.safesearch.${src_name}"
+					if [ -x "${adb_lookupcmd}" ]
+					then
+						safe_ips="$("${adb_lookupcmd}" "${safe_cname}" 2>/dev/null | "${adb_awk}" '/^Address[ 0-9]*: /{ORS=" ";print $NF}')"
+						if [ -n "${safe_ips}" ]
+						then
+							printf "%s\n" ${safe_domains} > "${adb_tmpdir}/tmp.raw.safesearch.${src_name}"
+						fi
+					fi
 					out_rc="${?}"
 				;;
 				"yandex")
-					safe_ips="213.180.193.56"
 					safe_cname="familysearch.yandex.ru"
 					safe_domains="ya.ru yandex.ru yandex.com yandex.com.tr yandex.ua yandex.by yandex.ee yandex.lt yandex.lv yandex.md yandex.uz yandex.tm yandex.tj yandex.az"
-					printf "%s\n" ${safe_domains} > "${adb_tmpdir}/tmp.raw.safesearch.${src_name}"
+					if [ -x "${adb_lookupcmd}" ]
+					then
+						safe_ips="$("${adb_lookupcmd}" "${safe_cname}" 2>/dev/null | "${adb_awk}" '/^Address[ 0-9]*: /{ORS=" ";print $NF}')"
+						if [ -n "${safe_ips}" ]
+						then
+							printf "%s\n" ${safe_domains} > "${adb_tmpdir}/tmp.raw.safesearch.${src_name}"
+						fi
+					fi
 					out_rc="${?}"
 				;;
 				"youtube")
 					if [ "${adb_safesearchmod}" -eq 0 ]
 					then
-						safe_ips="216.239.38.120 2001:4860:4802:32::78"
 						safe_cname="restrict.youtube.com"
 					else
-						safe_ips="216.239.38.119 2001:4860:4802:32::77"
 						safe_cname="restrictmoderate.youtube.com"
 					fi
 					safe_domains="www.youtube.com m.youtube.com youtubei.googleapis.com youtube.googleapis.com www.youtube-nocookie.com"
-					printf "%s\n" ${safe_domains} > "${adb_tmpdir}/tmp.raw.safesearch.${src_name}"
+					if [ -x "${adb_lookupcmd}" ]
+					then
+						safe_ips="$("${adb_lookupcmd}" "${safe_cname}" 2>/dev/null | "${adb_awk}" '/^Address[ 0-9]*: /{ORS=" ";print $NF}')"
+						if [ -n "${safe_ips}" ]
+						then
+							printf "%s\n" ${safe_domains} > "${adb_tmpdir}/tmp.raw.safesearch.${src_name}"
+						fi
+					fi
 					out_rc="${?}"
 				;;
 			esac
-			if [ "${out_rc}" -eq 0 ]
+			if [ "${out_rc}" -eq 0 ] && [ -s "${adb_tmpdir}/tmp.raw.safesearch.${src_name}" ]
 			then
 				> "${adb_tmpdir}/tmp.safesearch.${src_name}"
-				if [ "${adb_dns}" = "named" ] || [ "${adb_dns}" = "kresd" ]
+				if [ "${adb_dns}" = "named" ]
 				then
 					array="${safe_cname}"
 				else
@@ -914,7 +947,7 @@ f_tld()
 #
 f_switch()
 {
-	local status list entry done="false" mode="${1}"
+	local status entry done="false" mode="${1}"
 
 	json_load_file "${adb_rtfile}" >/dev/null 2>&1
 	json_select "data" >/dev/null 2>&1
@@ -1168,8 +1201,7 @@ f_main()
 
 	# white- and blacklist preparation
 	#
-	list="blacklist whitelist"
-	for entry in ${list}
+	for entry in ${adb_locallist}
 	do
 		( f_list "${entry}" "${entry}" )&
 	done
@@ -1178,8 +1210,11 @@ f_main()
 	#
 	if [ "${adb_safesearch}" -eq 1 ] && [ "${adb_dnssafesearch}" != "0" ]
 	then
-		list="google bing duckduckgo pixabay yandex youtube"
-		for entry in ${list}
+		if [ -z "${adb_safesearchlist}" ]
+		then
+			adb_safesearchlist="google bing duckduckgo pixabay yandex youtube"
+		fi
+		for entry in ${adb_safesearchlist}
 		do
 			( f_list safesearch "${entry}" )&
 		done
@@ -1452,7 +1487,7 @@ f_report()
 				(
 					"${adb_dumpcmd}" -tttt -r "${file}" 2>/dev/null | \
 						"${adb_awk}" -v cnt="${cnt}" '!/\.lan\. |PTR\? | SOA\? /&&/ A[\? ]+|NXDomain|0\.0\.0\.0/{a=$1;b=substr($2,0,8);c=$4;sub(/\.[0-9]+$/,"",c);d=cnt $7;sub(/\*$/,"",d);
-						e=$(NF-1);sub(/[0-9]\/[0-9]\/[0-9]|0\.0\.0\.0/,"NX",e);sub(/\.$/,"",e);sub(/([0-9]{1,3}\.){3}[0-9]{1,3}/,"OK",e);printf "%s\t%s\t%s\t%s\t%s\n",d,e,a,b,c}' >> "${adb_reportdir}/adb_report.raw"
+						e=$(NF-1);sub(/[0-9]\/[0-9]\/[0-9]|0\.0\.0\.0/,"NX",e);sub(/\.$/,"",e);sub(/([0-9]{1,3}\.){3}[0-9]{1,3}/,"OK",e);if(e==""){e="err"};printf "%s\t%s\t%s\t%s\t%s\n",d,e,a,b,c}' >> "${adb_reportdir}/adb_report.raw"
 				)&
 				hold=$((cnt%adb_maxqueue))
 				if [ "${hold}" -eq 0 ]
@@ -1596,6 +1631,14 @@ then
 	. "/usr/share/libubox/jshn.sh"
 else
 	f_log "err" "system libraries not found"
+fi
+
+# version information
+#
+if [ "${adb_action}" = "version" ]
+then
+	printf "%s\n" "${adb_ver}"
+	exit 0
 fi
 
 # handle different adblock actions

@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=uacme
 PKG_VERSION:=1.2.1
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/ndilieto/uacme/tar.gz/upstream/$(PKG_VERSION)?
@@ -89,6 +89,11 @@ define Package/uacme/install
 	$(INSTALL_CONF) ./files/acme.config $(1)/etc/config/acme
 	$(INSTALL_BIN) ./files/run.sh $(1)/usr/share/uacme/run-uacme
 	$(INSTALL_BIN) ./files/acme.init $(1)/etc/init.d/acme
+endef
+
+define Package/uacme/prerm
+#!/bin/sh
+sed -i '/\/etc\/init\.d\/acme start/d' /etc/crontabs/root
 endef
 
 $(eval $(call BuildPackage,uacme))

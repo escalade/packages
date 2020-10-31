@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=libmariadb
-PKG_VERSION:=3.1.7
+PKG_VERSION:=3.1.10
 PKG_RELEASE:=1
 
 PKG_SOURCE:=mariadb-connector-c-$(PKG_VERSION)-src.tar.gz
@@ -17,19 +17,16 @@ PKG_SOURCE_URL := \
 	https://mirror.lstn.net/mariadb/connector-c-$(PKG_VERSION) \
 	https://ftp.yz.yamagata-u.ac.jp/pub/dbms/mariadb/connector-c-$(PKG_VERSION) \
 	https://downloads.mariadb.org/interstitial/connector-c-$(PKG_VERSION)
-
-PKG_HASH:=64f7bc8f5df3200ba6e3080f68ee4942382a33e8371baea8ca4b9242746df59a
-PKG_MAINTAINER:=Sebastian Kemper <sebastian_ml@gmx.net>
-PKG_LICENSE:=LGPL-2.1
-PKG_LICENSE_FILES:=COPYING.LIB
-
+PKG_HASH:=af3e5613cb9e811f70db85a8a704c7140dc3e35f7c39912d0509511638f9658f
 PKG_BUILD_DIR:=$(BUILD_DIR)/mariadb-connector-c-$(PKG_VERSION)-src
 
+PKG_MAINTAINER:=Michal Hrusecky <Michal@Hrusecky.net>
+PKG_LICENSE:=LGPL-2.1-or-later
+PKG_LICENSE_FILES:=COPYING.LIB
 PKG_CPE_ID:=cpe:/a:mariadb:mariadb
 
-PKG_BUILD_PARALLEL:=1
-
 CMAKE_INSTALL:=1
+PKG_BUILD_PARALLEL:=1
 
 MARIADB_CONF_DIR:=/etc/mysql
 MARIADB_PLUGIN_DIR:=/usr/lib/mariadb/plugin
@@ -160,7 +157,7 @@ define Package/$(PKG_NAME)/install
 		$(PKG_INSTALL_DIR)$(MARIADB_PLUGIN_DIR)/sha256_password.so \
 		$(1)$(MARIADB_PLUGIN_DIR)
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/lib/libmariadb.so.$(ABI_VERSION) $(1)/usr/lib
-	$(INSTALL_CONF) conf/50-client.cnf $(1)$(MARIADB_CONF_DIR)/conf.d
+	$(INSTALL_DATA) conf/50-client.cnf $(1)$(MARIADB_CONF_DIR)/conf.d
 endef
 
 define BuildPlugin

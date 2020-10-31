@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=openconnect
-PKG_VERSION:=8.05
-PKG_RELEASE:=2
+PKG_VERSION:=8.10
+PKG_RELEASE:=3
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=ftp://ftp.infradead.org/pub/openconnect/
-PKG_HASH:=335c2952d0cb36822acb112eaaf5e3b4acffc6874985fb614fec0b76c4c12992
+PKG_HASH:=30e64c6eca4be47bbf1d61f53dc003c6621213738d4ea7a35e5cf1ac2de9bab1
 
 PKG_LICENSE:=LGPL-2.1-or-later
 PKG_LICENSE_FILES:=COPYING.LGPL
@@ -42,13 +42,15 @@ define Package/openconnect
 endef
 
 define Package/openconnect/description
-	A VPN client compatible with Cisco's AnyConnect SSL VPN, ocserv and Juniper (Pulse secure).
+	A VPN client compatible with several SSL VPN implementations (ocserv, Cisco AnyConnect, Juniper, Palo Alto)
 
-        OpenConnect is a client that follows the Cisco's AnyConnect SSL VPN protocol,
-        which is supported by IOS 12.4(9)T or later on Cisco SR500, 870, 880, 1800,
-        2800, 3800, 7200 Series and Cisco 7301 Routers, as well as the OpenConnect
-        VPN server. It has later been ported to support the Juniper SSL VPN which
-        is now known as Pulse Connect Secure.
+	OpenConnect is an SSL VPN client initially created to support Cisco's
+	AnyConnect SSL VPN. It has since been extended to support the Pulse Connect
+	Secure VPN (formerly known as Juniper Network Connect or Junos Pulse) and
+	the Palo Alto Networks GlobalProtect SSL VPN.
+
+	A corresponding OpenConnect VPN server implementation can be found in the
+	ocserv package.
 endef
 
 CONFIGURE_ARGS += \

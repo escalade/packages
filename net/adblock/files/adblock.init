@@ -2,16 +2,20 @@
 # Copyright (c) 2015-2020 Dirk Brenken (dev@brenken.org)
 # This is free software, licensed under the GNU General Public License v3.
 
+# set (s)hellcheck exceptions
+# shellcheck disable=1091,2010,2016,2034,2039,2059,2086,2091,2129,2143,2154,2181,2183,2188
+
 START=30
 USE_PROCD=1
 
-EXTRA_COMMANDS="suspend resume query report list timer status_service"
+EXTRA_COMMANDS="suspend resume query report list timer status_service version"
 EXTRA_HELP="	suspend	Suspend adblock processing
 	resume	Resume adblock processing
 	query	<domain> Query active blocklists and backups for a specific domain
 	report	[<search>] Print DNS statistics with an optional search parameter
 	list	[[<add>|<remove>] [source(s)]] List available adblock sources or add/remove them from config
-	timer	<action> <hour> [<minute>] [<weekday>] Set a cron based update interval"
+	timer	<action> <hour> [<minute>] [<weekday>] Set a cron based update interval
+	version	print version information"
 
 adb_init="/etc/init.d/adblock"
 adb_script="/usr/bin/adblock.sh"
@@ -24,6 +28,11 @@ if [ -s "${adb_pidfile}" ] && { [ "${action}" = "start" ] || [ "${action}" = "st
 then
 	exit 0
 fi
+
+version()
+{
+	rc_procd "${adb_script}" version
+}
 
 boot()
 {
@@ -114,19 +123,17 @@ list()
 		if [ -n "$(uci -q changes adblock)" ]
 		then
 			uci_commit adblock
+			"${adb_init}" start
 		fi
 	else
 		src_archive="$(uci_get adblock global adb_srcarc "/etc/adblock/adblock.sources.gz")"
 		src_file="$(uci_get adblock global adb_srcfile "/tmp/adb_sources.json")"
 		src_enabled="$(uci -q show adblock.global.adb_sources)"
-		if [ ! -r "${src_file}" ]
+		if [ -r "${src_archive}" ]
 		then
-			if [ -r "${src_archive}" ]
-			then
-				zcat "${src_archive}" > "${src_file}"
-			else
-				printf "%s\\n" "::: adblock source archive '${src_archive}' not found"
-			fi
+			zcat "${src_archive}" > "${src_file}"
+		else
+			printf "%s\\n" "::: adblock source archive '${src_archive}' not found"
 		fi
 		if [ -r "${src_file}" ]
 		then
@@ -134,8 +141,8 @@ list()
 			src_enabled="${src_enabled//\'}"
 			printf "%s\\n" "::: Available adblock sources"
 			printf "%s\\n" ":::"
-			printf "%-25s%-10s%-7s%-20s%s\\n" "    Name" "Enabled" "Size" "Focus" "Info URL"
-			printf "%s\\n" "    ------------------------------------------------------------------"
+			printf "%-25s%-10s%-7s%-21s%s\\n" "    Name" "Enabled" "Size" "Focus" "Info URL"
+			printf "%s\\n" "    -------------------------------------------------------------------"
 			json_load_file "${src_file}"
 			json_get_keys keylist
 			for key in ${keylist}
@@ -155,7 +162,7 @@ list()
 						enabled=" "
 					fi
 					src_enabled="${src_enabled/${key}}"
-					printf "  + %-21s%-10s%-7s%-20s%s\\n" "${key}" "${enabled}" "${size}" "${focus}" "${descurl}"
+					printf "  + %-21s%-10s%-7s%-21s%s\\n" "${key:0:20}" "${enabled}" "${size:0:3}" "${focus:0:20}" "${descurl:0:50}"
 				else
 					src_enabled="${src_enabled} ${key}"
 				fi
@@ -168,7 +175,7 @@ list()
 				printf "%s\\n" "    ----------------------------------------------"
 				for key in ${src_enabled}
 				do
-					printf "  - %s\\n" "${key}"
+					printf "  - %s\\n" "${key:0:20}"
 				done
 			fi
 		else

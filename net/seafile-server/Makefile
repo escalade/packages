@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=seafile-server
-PKG_VERSION:=7.1.3
-PKG_RELEASE:=2
+PKG_VERSION:=7.1.5
+PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/haiwen/seafile-server/tar.gz/v$(PKG_VERSION)-server?
-PKG_HASH:=79f7722a34c304adb78462194e64d6a610bd5ee40def37f4e4cdf5befed44fcd
+PKG_HASH:=407a6243f754e366ce6754a2aa643574aa7742d4e81b7cc350dea348f3063707
 
 PKG_MAINTAINER:=Alexandru Ardelean <ardeleanalex@gmail.com>, Jeffery To <jeffery.to@gmail.com>
 PKG_LICENSE:=AGPL-3.0-only
@@ -59,6 +59,7 @@ define Package/seafile-server
     +libsqlite3 \
     +libuuid \
     +oniguruma \
+    +procps-ng \
     +procps-ng-pkill \
     +python3-pymysql \
     +python3-seafile-server \
@@ -72,6 +73,10 @@ endef
 define Package/seafile-server/description
   Open source cloud storage with advanced features on privacy
   protection and teamwork.
+endef
+
+define Package/seafile-server/config
+  select LIBEVHTP_BUILD_DEPENDS
 endef
 
 define Package/seafile-server-fuse
@@ -92,6 +97,7 @@ define Package/seafile-server-fuse
     +libsearpc \
     +libsqlite3 \
     +libuuid \
+    +procps-ng \
     +procps-ng-pkill \
     +seafile-ccnet \
     +seafile-server \
@@ -128,10 +134,6 @@ CONFIGURE_ARGS += \
 
 CONFIGURE_VARS += \
 	PYTHON="$(HOST_PYTHON3_BIN)"
-
-ifdef CONFIG_GCC_LIBSSP
-  TARGET_LDFLAGS += -lssp
-endif
 
 define Package/seafile-server/conffiles
 /etc/config/seafile-server

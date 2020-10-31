@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=p11-kit
-PKG_VERSION:=0.23.20
+PKG_VERSION:=0.23.21
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=https://github.com/p11-glue/p11-kit/releases/download/$(PKG_VERSION)
-PKG_HASH:=14d86024c3dfd6b967d9bc0b4ec7b2973014fe7423481f4d230a1a63b8aa6104
+PKG_HASH:=f1baa493f05ca0d867f06bcb54cbb5cdb28c756db07207b6e18de18a87b10627
 
 PKG_MAINTAINER:=Nikos Mavrogiannopoulos <n.mavrogiannopoulos@gmail.com>
 PKG_LICENSE:=BSD-3-Clause
@@ -39,7 +39,7 @@ define Package/p11-kit/description
   way that they are discoverable.
 endef
 
-TARGET_LDFLAGS += -Wl,--gc-sections,--as-needed
+TARGET_LDFLAGS += -Wl,--gc-sections
 
 MESON_ARGS += \
 	-Dhash_impl=internal \
@@ -62,9 +62,9 @@ endef
 define Package/p11-kit/install
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libp11-kit.so.* $(1)/usr/lib/
-	$(INSTALL_DIR) $(1)/etc/p11-kit/modules/
+	$(INSTALL_DIR) $(1)/etc/pkcs11/modules/
 ifneq ($(CONFIG_PACKAGE_libopensc),)
-	$(CP) ./files/opensc.module $(1)/etc/p11-kit/modules/
+	$(CP) ./files/opensc.module $(1)/etc/pkcs11/modules/
 endif
 endef
 

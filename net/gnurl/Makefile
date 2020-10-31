@@ -8,14 +8,14 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=gnurl
-PKG_VERSION:=7.67.0
-PKG_RELEASE:=2
+PKG_VERSION:=7.72.0
+PKG_RELEASE:=1
 
 PKG_SOURCE_URL:=@GNU/gnunet
 
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_HASH:=2b972454ac3ab8c40f4dd2beeff168dde9666c473a1418f7f69194563e4caa46
+PKG_HASH:=b1e72be03fcf9b3fdaf01ae0702c686e9de10f67ef538918447c9e81555694f8
 
 PKG_LICENSE:=MIT
 PKG_LICENSE_FILES:=COPYING
@@ -71,6 +71,7 @@ CONFIGURE_ARGS += \
 	--without-ssl \
 	--without-winssl \
 	--without-darwinssl \
+	--without-zstd \
 	--disable-ares \
 	--disable-sspi \
 	--disable-crypto-auth \

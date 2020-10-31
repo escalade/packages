@@ -8,13 +8,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=collectd
-PKG_VERSION:=5.11.0
+PKG_VERSION:=5.12.0
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:=https://collectd.org/files/ \
 	https://github.com/collectd/collectd/releases/download/collectd-$(PKG_VERSION)
-PKG_HASH:=37b10a806e34aa8570c1cafa6006c604796fae13cc2e1b3e630d33dcba9e5db2
+PKG_HASH:=5bae043042c19c31f77eb8464e56a01a5454e0b39fa07cf7ad0f1bfc9c3a09d6
 
 PKG_FIXUP:=autoreconf
 PKG_REMOVE_FILES:=aclocal.m4 libltdl/aclocal.m4
@@ -37,6 +37,7 @@ COLLECTD_PLUGINS_DISABLED:= \
 	ceph \
 	cgroups \
 	cpusleep \
+	curl_jolokia \
 	curl_json \
 	curl_xml \
 	dbi \
@@ -53,6 +54,7 @@ COLLECTD_PLUGINS_DISABLED:= \
 	grpc \
 	hddtemp \
 	hugepages \
+	infiniband \
 	intel_pmu \
 	intel_rdt \
 	ipc \
@@ -68,12 +70,14 @@ COLLECTD_PLUGINS_DISABLED:= \
 	mbmon \
 	mcelog \
 	md \
+	mdevents \
 	memcachec \
 	memcached \
 	mic \
 	monitorus \
 	multimeter \
 	netapp \
+	netstat_udp \
 	nfs \
 	notify_desktop \
 	notify_email \
@@ -106,7 +110,6 @@ COLLECTD_PLUGINS_DISABLED:= \
 	tape \
 	tokyotyrant \
 	turbostat \
-	ubi \
 	uuid \
 	varnish \
 	virt \
@@ -190,6 +193,7 @@ COLLECTD_PLUGINS_SELECTED:= \
 	ted \
 	thermal \
 	threshold \
+	ubi \
 	unixsock \
 	uptime \
 	users \
@@ -362,6 +366,32 @@ define BuildPlugin
 
 endef
 
+define BuildScriptPlugin
+  PKG_CONFIG_DEPENDS+= CONFIG_PACKAGE_collectd-mod-$(1)
+
+  define Package/collectd-mod-$(1)
+  $$(call Package/collectd/Default)
+    TITLE:=$(2) plugin
+    DEPENDS:= $(4)
+  endef
+
+  define Package/collectd-mod-$(1)/install
+	$(INSTALL_DIR) $$(1)/usr/libexec/collectd
+	for m in $(3); do \
+		${INSTALL_BIN} \
+			./files/exec-scripts/$$$$$$$${m}.sh $$(1)/usr/libexec/collectd/ ; \
+	done
+	if [ -f ./files/usr/share/collectd/plugin/$(1).json ]; then \
+		$(INSTALL_DIR) $$(1)/usr/share/collectd/plugin ; \
+		$(INSTALL_DATA) ./files/usr/share/collectd/plugin/$(1).json \
+			$$(1)/usr/share/collectd/plugin/$(1).json ; \
+	fi
+  endef
+
+  $$(eval $$(call BuildPackage,collectd-mod-$(1)))
+
+endef
+
 $(eval $(call BuildPackage,collectd))
 
 #$(eval $(call BuildPlugin,NAME,DESCRIPTION,FILES,DEPENDENCIES))
@@ -427,6 +457,7 @@ $(eval $(call BuildPlugin,ted,The Energy Detective input,ted,))
 $(eval $(call BuildPlugin,tcpconns,TCP connection tracking input,tcpconns,))
 $(eval $(call BuildPlugin,thermal,system temperatures input,thermal,))
 $(eval $(call BuildPlugin,threshold,Notifications and thresholds,threshold,))
+$(eval $(call BuildPlugin,ubi,Unsorted block images,ubi,@NAND_SUPPORT))
 $(eval $(call BuildPlugin,unixsock,unix socket output,unixsock,))
 $(eval $(call BuildPlugin,uptime,uptime status input,uptime,))
 $(eval $(call BuildPlugin,users,user logged in status input,users,))
@@ -434,3 +465,5 @@ $(eval $(call BuildPlugin,vmem,virtual memory usage input,vmem,))
 $(eval $(call BuildPlugin,wireless,wireless status input,wireless,))
 $(eval $(call BuildPlugin,write-graphite,Carbon/Graphite output,write_graphite,+PACKAGE_collectd-mod-write-graphite:libpthread))
 $(eval $(call BuildPlugin,write-http,HTTP POST output,write_http,+PACKAGE_collectd-mod-write-http:libcurl))
+
+$(eval $(call BuildScriptPlugin,sqm,SQM/qdisc collection,sqm_collectd,+PACKAGE_collectd-mod-sqm:collectd-mod-exec))

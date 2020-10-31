@@ -5,15 +5,8 @@ SET(CMAKE_CXX_STANDARD 17)
 
 INCLUDE(CheckFunctionExists)
 
-IF(UBUS)
-FIND_PATH(ubus_include_dir libubus.h)
-FIND_LIBRARY(ubox NAMES ubox)
-FIND_LIBRARY(ubus NAMES ubus)
-INCLUDE_DIRECTORIES(${ubus_include_dir})
-ENDIF()
-
 ADD_DEFINITIONS(-Os -Wall -Werror -Wextra -g3)
-ADD_DEFINITIONS(-Wno-unused-parameter -Wmissing-declarations)
+ADD_DEFINITIONS(-Wno-unused-parameter -Wmissing-declarations -Wshadow)
 
 SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 
@@ -22,10 +15,13 @@ IF(UBUS)
 
 ADD_COMPILE_DEFINITIONS(VERSION=${VERSION})
 
-ADD_EXECUTABLE(nginx-util nginx-util.cpp)
-TARGET_COMPILE_DEFINITIONS(nginx-util PUBLIC -DNO_SSL)
-TARGET_LINK_LIBRARIES(nginx-util ${ubox} ${ubus} pthread)
-INSTALL(TARGETS nginx-util RUNTIME DESTINATION bin)
+FIND_PATH(ubus_include_dir libubus.h)
+FIND_LIBRARY(ubus NAMES ubus)
+INCLUDE_DIRECTORIES(${ubus_include_dir})
+
+FIND_PATH(ubox_include_dir libubox/blobmsg.h)
+FIND_LIBRARY(ubox NAMES ubox)
+INCLUDE_DIRECTORIES(${ubox_include_dir})
 
 ADD_EXECUTABLE(nginx-ssl-util nginx-util.cpp)
 TARGET_LINK_LIBRARIES(nginx-ssl-util ${ubox} ${ubus} pthread ssl crypto pcre)
@@ -37,6 +33,8 @@ TARGET_LINK_LIBRARIES(nginx-ssl-util-nopcre ${ubox} ${ubus} pthread ssl crypto)
 INSTALL(TARGETS nginx-ssl-util-nopcre RUNTIME DESTINATION bin)
 
 ELSE()
+
+ADD_COMPILE_DEFINITIONS(VERSION=0)
 
 CONFIGURE_FILE(test-px5g.sh test-px5g.sh COPYONLY)
 CONFIGURE_FILE(test-nginx-util.sh test-nginx-util.sh COPYONLY)

@@ -6,18 +6,19 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=mpd
-PKG_VERSION:=0.21.22
+PKG_VERSION:=0.21.26
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=https://www.musicpd.org/download/mpd/0.21/
-PKG_HASH:=565687d1899b585350cd66b603e46e5b79affc0a0e36d96d8953c6ccc6f69ba2
+PKG_HASH:=f9e68221c7a6829ec02f281eb313b2f24182020f5eb65ab22b337e6169ea4eea
 
-PKG_MAINTAINER:=Ted Hess <thess@kitschensync.net>
+PKG_MAINTAINER:=
 PKG_LICENSE:=GPL-2.0-or-later
 PKG_LICENSE_FILES:=COPYING
 
 PKG_CONFIG_DEPENDS:= \
+	CONFIG_BUILD_PATENTED \
 	CONFIG_IPV6 \
 
 PKG_INSTALL:=1
@@ -32,8 +33,8 @@ define Package/mpd/Default
   CATEGORY:=Sound
   TITLE:=Music Player Daemon
   URL:=https://www.musicpd.org/
-  DEPENDS:= +zlib +libcurl +libpthread +libmpdclient +libstdcpp $(ICONV_DEPENDS) \
-	    +AUDIO_SUPPORT:alsa-lib +boost +libexpat +libflac +libfaad2 +USE_UCLIBC:icu
+  DEPENDS:= +zlib +libcurl +libpthread +libmpdclient +boost $(ICONV_DEPENDS) \
+            +AUDIO_SUPPORT:alsa-lib +libexpat +libflac +libid3tag +libfaad2 +libopus
 endef
 
 define Package/mpd/Default/description
@@ -46,7 +47,8 @@ endef
 define Package/mpd-full
 $(call Package/mpd/Default)
   TITLE+= (full)
-  DEPENDS+= +libffmpeg +libid3tag +libvorbis +libmms +libupnp +libshout +pulseaudio-daemon +yajl
+  DEPENDS+= +AUDIO_SUPPORT:pulseaudio-daemon +libvorbis +libmms +libnpupnp +libshout +yajl \
+            +BUILD_PATENTED:libffmpeg +!BUILD_PATENTED:libmad
   PROVIDES:=mpd
   VARIANT:=full
 endef
@@ -83,7 +85,7 @@ endef
 define Package/mpd-avahi-service
 $(call Package/mpd/Default)
   TITLE+= (Avahi service)
-  DEPENDS+=+avahi-daemon
+  DEPENDS+=+avahi-dbus-daemon
 endef
 
 define Package/mpd-avahi-service/description
@@ -97,11 +99,6 @@ define Package/mpd-avahi-service/conffiles
 /etc/avahi/services/mpd.service
 endef
 
-TARGET_LDFLAGS += \
-	$(if $(ICONV_FULL),-liconv,-Wl,--whole-archive -liconv -Wl,--no-whole-archive) \
-	$(if $(CONFIG_USE_GLIBC),-lpthread) \
-	-Wl,-rpath-link=$(STAGING_DIR)/usr/lib/pulseaudio
-
 MESON_ARGS += \
 	-Ddocumentation=false \
 	-Dtest=false \
@@ -110,7 +107,7 @@ MESON_ARGS += \
 	-Ddaemon=false \
 	-Dsystemd=disabled \
 	-Dtcp=true \
-	-Dipv6=$(if $(CONFIG_IPV6),enabled,disabled) \
+	-Dipv6=$(if $(CONFIG_IPV6),en,dis)abled \
 	-Dlocal_socket=true \
 	-Ddsd=false \
 	-Ddatabase=true \
@@ -128,6 +125,7 @@ MESON_ARGS += \
 	-Dbzip2=disabled \
 	-Diso9660=disabled \
 	-Dzzip=disabled \
+	-Did3tag=enabled \
 	-Dchromaprint=disabled \
 	-Dadplug=disabled \
 	-Daudiofile=disabled \
@@ -139,7 +137,7 @@ MESON_ARGS += \
 	-Dmikmod=disabled \
 	-Dmodplug=disabled \
 	-Dmpcdec=disabled \
-	-Dopus=disabled \
+	-Dopus=enabled \
 	-Dsidplay=disabled \
 	-Dsndfile=disabled \
 	-Dwavpack=disabled \
@@ -151,7 +149,7 @@ MESON_ARGS += \
 	-Dwave_encoder=true \
 	-Dlibsamplerate=disabled \
 	-Dsoxr=disabled \
-	-Dalsa=$(if $(CONFIG_AUDIO_SUPPORT),enabled,disabled) \
+	-Dalsa=$(if $(CONFIG_AUDIO_SUPPORT),en,dis)abled \
 	-Dao=disabled \
 	-Dhttpd=true \
 	-Djack=disabled \
@@ -161,31 +159,33 @@ MESON_ARGS += \
 	-Dsolaris_output=disabled \
 	-Ddbus=disabled \
 	-Dexpat=enabled \
-	-Dicu=$(if $(CONFIG_USE_UCLIBC),enabled,disabled) \
-	-Diconv=$(if $(CONFIG_USE_UCLIBC),disabled,enabled) \
+	-Dicu=disabled \
+	-Diconv=enabled \
 	-Dpcre=disabled \
 	-Dsqlite=disabled \
 	-Dzlib=enabled \
 	-Dzeroconf=disabled
 
-
 ifeq ($(BUILD_VARIANT),full)
 
   MESON_ARGS += \
-	-Dupnp=enabled \
+	-Dupnp=npupnp \
 	-Dmms=enabled \
 	-Dsoundcloud=enabled \
-	-Did3tag=enabled \
-	-Dffmpeg=enabled \
-	-Dmad=disabled \
+	-Dffmpeg=$(if $(CONFIG_BUILD_PATENTED),en,dis)abled \
+	-Dmad=$(if $(CONFIG_BUILD_PATENTED),dis,en)abled \
 	-Dtremor=disabled \
 	-Dvorbis=enabled \
 	-Dfifo=true \
 	-Dpipe=true \
-	-Dpulse=enabled \
+	-Dpulse=$(if $(CONFIG_AUDIO_SUPPORT),en,dis)abled \
 	-Drecorder=true \
 	-Dshout=enabled \
 	-Dyajl=enabled
+
+ifeq ($(CONFIG_AUDIO_SUPPORT),y)
+	TARGET_LDFLAGS += -Wl,-rpath-link=$(STAGING_DIR)/usr/lib/pulseaudio
+endif
 endif
 
 ifeq ($(BUILD_VARIANT),mini)
@@ -195,7 +195,6 @@ ifeq ($(BUILD_VARIANT),mini)
 	-Dupnp=disabled \
 	-Dmms=disabled \
 	-Dsoundcloud=disabled \
-	-Did3tag=disabled \
 	-Dffmpeg=disabled \
 	-Dmad=enabled \
 	-Dtremor=enabled \

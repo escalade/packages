@@ -11,12 +11,12 @@ include $(TOPDIR)/rules.mk
 include ../python3-version.mk
 
 PKG_NAME:=python3
-PKG_RELEASE:=2
+PKG_RELEASE:=1
 PKG_VERSION:=$(PYTHON3_VERSION).$(PYTHON3_VERSION_MICRO)
 
 PKG_SOURCE:=Python-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=https://www.python.org/ftp/python/$(PKG_VERSION)
-PKG_HASH:=2646e7dc233362f59714c6193017bb2d6f7b38d6ab4a0cb5fbac5c36c4d845df
+PKG_HASH:=9c73e63c99855709b9be0b3cc9e5b072cb60f37311e8c4e50f15576a0bf82854
 
 PKG_MAINTAINER:=Alexandru Ardelean <ardeleanalex@gmail.com>, Jeffery To <jeffery.to@gmail.com>
 PKG_LICENSE:=Python/2.0
@@ -125,8 +125,10 @@ define Package/python3/description
   It's python3-light + all other packages.
 endef
 
+TARGET_CONFIGURE_OPTS+= \
+	READELF="$(TARGET_CROSS)readelf"
+
 MAKE_FLAGS+=\
-	CROSS_COMPILE=yes \
 	LD="$(TARGET_CC)"
 
 EXTRA_CFLAGS+= \
@@ -134,35 +136,22 @@ EXTRA_CFLAGS+= \
 EXTRA_LDFLAGS+= \
 	-L$(PKG_BUILD_DIR)
 
-ENABLE_IPV6:=
-ifeq ($(CONFIG_IPV6),y)
-	ENABLE_IPV6 += --enable-ipv6
-endif
-
-PYTHON_FOR_BUILD:= \
-	_PYTHON_PROJECT_BASE=$(PKG_BUILD_DIR) \
-	_PYTHON_HOST_PLATFORM=linux2 \
-	PYTHONPATH="$(PKG_BUILD_DIR)/Lib:$(PKG_BUILD_DIR)/build/lib.linux2-$(PYTHON3_VERSION)" \
-	_PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata \
-	$(HOST_PYTHON3_BIN)
-
 DISABLE_BLUETOOTH:= \
 	ac_cv_header_bluetooth_bluetooth_h=no \
 	ac_cv_header_bluetooth_h=no
 
 CONFIGURE_ARGS+= \
-	--sysconfdir=/etc \
+	--enable-optimizations \
 	--enable-shared \
-	--without-cxx-main \
-	--with-threads \
 	--with-system-ffi \
-	--with-ensurepip=no \
+	--without-cxx-main \
+	--without-ensurepip \
 	--without-pymalloc \
-	$(if $(CONFIG_PYTHON3_BLUETOOTH_SUPPORT),,$(DISABLE_BLUETOOTH)) \
-	PYTHON_FOR_BUILD="$(PYTHON_FOR_BUILD)" \
-	$(ENABLE_IPV6) \
+	$(if $(CONFIG_IPV6),--enable-ipv6) \
+	$(if $(findstring mips,$(CONFIG_ARCH)),,--with-lto) \
 	CONFIG_SITE="$(PKG_BUILD_DIR)/config.site" \
-	OPT="$(TARGET_CFLAGS)"
+	OPT="$(TARGET_CFLAGS)" \
+	$(if $(CONFIG_PYTHON3_BLUETOOTH_SUPPORT),,$(DISABLE_BLUETOOTH))
 
 define Build/Prepare
 	$(call Build/Prepare/Default)
@@ -186,7 +175,7 @@ define Build/Compile/python3-setuptools
 		--ignore-installed \
 		--root=$(PKG_BUILD_DIR)/install-setuptools \
 		--prefix=/usr \
-		$(PKG_BUILD_DIR)/Lib/ensurepip/_bundled/setuptools-$(PYTHON3_SETUPTOOLS_VERSION)-py2.py3-none-any.whl
+		$(PKG_BUILD_DIR)/Lib/ensurepip/_bundled/setuptools-$(PYTHON3_SETUPTOOLS_VERSION)-py3-none-any.whl
 	$(call PatchDir,$(PKG_BUILD_DIR)/install-setuptools/usr/lib/python$(PYTHON3_VERSION)/site-packages,./patches-setuptools,)
 endef
 endif # CONFIG_PACKAGE_python3-setuptools
@@ -222,6 +211,10 @@ define Build/InstallDev
 		$(PKG_INSTALL_DIR)/usr/lib/python$(PYTHON3_VERSION) \
 		$(PKG_INSTALL_DIR)/usr/lib/libpython$(PYTHON3_VERSION).so* \
 		$(1)/usr/lib/
+	grep \
+		'^_PYTHON_HOST_PLATFORM=' \
+		$(PKG_INSTALL_DIR)/usr/lib/python$(PYTHON3_VERSION)/config-$(PYTHON3_VERSION)/Makefile > \
+		$(1)/usr/lib/python$(PYTHON3_VERSION)/config-$(PYTHON3_VERSION)/Makefile-vars
 	$(CP) \
 		$(PKG_INSTALL_DIR)/usr/lib/pkgconfig/python*.pc \
 		$(1)/usr/lib/pkgconfig
@@ -282,6 +275,9 @@ define Py3Package/python3-base/install
 	$(LN) python$(PYTHON3_VERSION) $(1)/usr/bin/python3
 	$(LN) python$(PYTHON3_VERSION) $(1)/usr/bin/python
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libpython$(PYTHON3_VERSION).so* $(1)/usr/lib/
+  # This depends on being called before filespec is processed
+	$(SED) 's|$(TARGET_AR)|ar|g;s|$(TARGET_CROSS)readelf|readelf|g;s|$(TARGET_CC)|gcc|g;s|$(TARGET_CXX)|g++|g' \
+		$(PKG_INSTALL_DIR)/usr/lib/python$(PYTHON3_VERSION)/_sysconfigdata.py
 endef
 
 Py3Package/python3-light/install:=:
@@ -305,13 +301,11 @@ HOST_CONFIGURE_VARS += \
 endif
 
 HOST_CONFIGURE_ARGS+= \
+	--enable-optimizations \
+	--with-ensurepip=upgrade \
+	--with-system-expat=$(STAGING_DIR_HOSTPKG) \
 	--without-cxx-main \
 	--without-pymalloc \
-	--with-threads \
-	--prefix=$(HOST_PYTHON3_DIR) \
-	--exec-prefix=$(HOST_PYTHON3_DIR) \
-	--with-system-expat=$(STAGING_DIR_HOSTPKG) \
-	--with-ensurepip=upgrade \
 	CONFIG_SITE=
 
 define Host/Configure

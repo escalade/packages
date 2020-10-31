@@ -8,11 +8,11 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=python-cryptography
-PKG_VERSION:=2.9
-PKG_RELEASE:=2
+PKG_VERSION:=3.1.1
+PKG_RELEASE:=1
 
 PYPI_NAME:=cryptography
-PKG_HASH:=0cacd3ef5c604b8e5f59bf2582c076c98a37fe206b31430d0cd08138aff0986e
+PKG_HASH:=9d9fc6a16357965d282dd4ab6531013935425d0dc4950df2e0cf2a1b1ac1017d
 
 PKG_LICENSE:=Apache-2.0 BSD-3-Clause
 PKG_LICENSE_FILES:=LICENSE.APACHE LICENSE.BSD
@@ -20,7 +20,7 @@ PKG_MAINTAINER:=Jeffery To <jeffery.to@gmail.com>, Alexandru Ardelean <ardeleana
 
 PKG_BUILD_DEPENDS:=libffi/host
 
-HOST_PYTHON3_PACKAGE_BUILD_DEPENDS:="cffi>=1.8,!=1.11.3"
+HOST_PYTHON3_PACKAGE_BUILD_DEPENDS:=cffi  # cffi>=1.8,!=1.11.3
 
 include ../pypi.mk
 include $(INCLUDE_DIR)/package.mk
@@ -34,7 +34,10 @@ define Package/python3-cryptography
   URL:=https://github.com/pyca/cryptography
   DEPENDS:= \
       +libopenssl \
-      +python3 \
+      +python3-light \
+      +python3-email \
+      +python3-openssl \
+      +python3-urllib \
       +python3-cffi \
       +python3-six
 endef

@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=procps-ng
-PKG_VERSION:=3.3.15
-PKG_RELEASE:=4
+PKG_VERSION:=3.3.16
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=@SF/procps-ng
-PKG_HASH:=10bd744ffcb3de2d591d2f6acf1a54a7ba070fdcc432a855931a5057149f0465
+PKG_HASH:=925eacd65dedcf9c98eb94e8978bbfb63f5de37294cc1047d81462ed477a20af
 
 PKG_MAINTAINER:=
 PKG_LICENSE:=GPL-2.0-or-later
@@ -22,7 +22,6 @@ PKG_LICENSE_FILES:=COPYING COPYING.LIB
 PKG_BUILD_PARALLEL:=1
 PKG_INSTALL:=1
 PKG_FIXUP:=autoreconf
-PKG_BUILD_DEPENDS:=gettext libiconv
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -82,6 +81,7 @@ define GenPlugin
 endef
 
 $(foreach a,$(PROCPS_APPLETS),$(eval $(call GenPlugin,procps-ng-$(a),$(a),$(call procps-applets-dir,$(a)))))
+$(eval $(call GenPlugin,procps-ng-sysctl,sysctl,/usr/sbin))
 
 MAKE_FLAGS += \
 	CFLAGS="$(TARGET_CFLAGS)" \
@@ -91,6 +91,11 @@ MAKE_FLAGS += \
 define Package/procps-ng/install
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libprocps.so* $(1)/usr/lib/
+endef
+
+define Package/procps-ng-sysctl/install
+	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/sysctl $(1)/usr/sbin
 endef
 
 define BuildPlugin
@@ -103,4 +108,5 @@ define BuildPlugin
 endef
 
 $(foreach a,$(PROCPS_APPLETS),$(eval $(call BuildPlugin,procps-ng-$(a),$(a),$(call procps-applets-dir,$(a)))))
+$(eval $(call BuildPackage,procps-ng-sysctl))
 $(eval $(call BuildPackage,procps-ng))

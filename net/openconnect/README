@@ -12,6 +12,8 @@ config interface 'MYVPN'
 	option serverhash 'AE7FF6A0426F0A0CD0A02EB9EC3C5066FAEB0B25'
 	option defaultroute '0'
 	option authgroup 'DEFAULT'
+	# usergroup option, if required by some servers
+	# option usergroup 'USERGROUP'
 
 	# For second factor auth:
 
@@ -30,8 +32,15 @@ config interface 'MYVPN'
 	#option token_mode 'script'
 	#option token_script '/lib/custom/getocpass.sh'
 
-	# Juniper vpn support
-	#option juniper '1'
+	# For non-anyconnect vpn protocols
+	# Cisco AnyConnect (default)
+	#option vpn_protocol 'anyconnect'
+	# Juniper Network Connect
+	#option vpn_protocol 'nc'
+	# Palo Alto Networks GlobalProtect
+	#option vpn_protocol 'gp'
+	# Pulse Connect Secure
+	#option vpn_protocol 'pulse'
 
 	# Authentication form responses
 	#list form_entry FORM:OPT=VAL
